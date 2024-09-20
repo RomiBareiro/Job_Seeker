@@ -1,0 +1,25 @@
+name: Go linting
+
+on: [push, pull_request]
+
+jobs:
+  lint:
+    name: Run golangci-lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.22
+    - name: Install golangci-lint
+      run: |
+          wget -O golangci-lint.tar.gz $(curl -s https://api.github.com/repos/golangci/golangci-lint/releases/latest | grep 'browser_' | cut -d\" -f4 | grep 'linux-amd64.tar.gz')
+          tar -xzf golangci-lint.tar.gz
+          sudo mv golangci-lint-*-linux-amd64/golangci-lint /usr/local/bin/
+
+    - name: Run golangci-lint
+      run: golangci-lint run

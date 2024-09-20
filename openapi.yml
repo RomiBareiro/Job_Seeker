@@ -1,0 +1,183 @@
+openapi: 3.0.0
+info:
+  title: Job Subscription API
+  description: API for subscribing to job notifications and querying available jobs.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/V1
+    description: Local development server
+paths:
+  /subscribe:
+    post:
+      summary: Subscribe to job notifications
+      description: Allows a user to subscribe to job notifications based on their preferences.
+      requestBody:
+        description: Subscription details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscribeInput'
+        required: true
+      responses:
+        '201':
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscribeOutput'
+        '400':
+          description: Bad request
+        '422':
+          description: Validation error
+        '500':
+          description: Internal server error
+  /jobs:
+    get:
+      summary: Get job listings
+      description: Retrieve job listings based on user preferences and query parameters.
+      parameters:
+        - name: id
+          in: query
+          description: User ID for fetching jobs
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: posted_date
+          in: query
+          description: Date when the job was posted
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: job_titles
+          in: query
+          description: List of job titles to filter
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: country
+          in: query
+          description: List of preferred countries to filter
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: Successful job retrieval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobsOutput'
+        '400':
+          description: Bad request
+        '422':
+          description: Validation error
+        '500':
+          description: Internal server error
+components:
+  schemas:
+    SubscribeInput:
+      type: object
+      required:
+        - name
+        - email
+        - job_titles
+        - country
+        - salary_min
+      properties:
+        name:
+          type: string
+          description: User's name
+        email:
+          type: string
+          description: User's email address
+        job_titles:
+          type: array
+          items:
+            type: string
+          description: List of job titles of interest
+        country:
+          type: array
+          items:
+            type: string
+          description: List of preferred countries
+        salary_min:
+          type: integer
+          format: int64
+          description: Minimum salary for job notifications
+    SubscribeOutput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User ID
+        name:
+          type: string
+          description: User's name
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of the subscription
+        message:
+          type: string
+          description: Response message
+    JobsInput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User ID
+        job_titles:
+          type: array
+          items:
+            type: string
+          description: List of job titles to filter
+        salary_min:
+          type: integer
+          format: int64
+          description: Minimum salary to filter
+        posted_date:
+          type: string
+          format: date-time
+          description: Date when the job was posted
+        country:
+          type: array
+          items:
+            type: string
+          description: List of preferred countries
+    JobsOutput:
+      type: object
+      properties:
+        internal_jobs:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of internal job IDs
+        external_jobs:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+                description: Job title
+              salary:
+                type: integer
+                format: int64
+                description: Job salary
+              skills:
+                type: object
+                properties:
+                  skills:
+                    type: array
+                    items:
+                      type: string
+                    description: List of job skills

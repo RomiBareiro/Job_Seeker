@@ -1,0 +1,6 @@
+.vscode/
+.air.toml
+main
+.env
+jobs
+.env_example
