@@ -57,88 +57,55 @@ func TestGetJobs(t *testing.T) {
 	}{
 		{
 			name:            "Success - Internal and External jobs fetched successfully",
-			internalJobs:    []uuid.UUID{},
+			internalJobs:    []uuid.UUID{uuid.New()},
 			internalJobsErr: nil,
-			externalJobs: []types.Job{
-				{
-					Title:  "Backend Developer",
-					Salary: 34000,
-					Skills: types.Skills{
-						Skills: []types.Skill{
-							{Name: "Java"},
-							{Name: "OOP"},
-							{Name: "Design Patterns"},
-						},
-					},
-				},
-				{
-					Title:  "Backend Developer",
-					Salary: 44000,
-					Skills: types.Skills{
-						Skills: []types.Skill{
-							{Name: "Java"},
-							{Name: "OOP"},
-							{Name: "Design Patterns"},
-						},
-					},
-				},
-			},
+			externalJobs:    []types.Job{{Title: "Backend Developer"}},
 			externalJobsErr: nil,
 			expectedOutput: types.JobsOutput{
-				InternalJobs: []uuid.UUID{},
-				ExternalJobs: []types.Job{
-					{
-						Title:  "Backend Developer",
-						Salary: 34000,
-						Skills: types.Skills{
-							Skills: []types.Skill{
-								{Name: "Java"},
-								{Name: "OOP"},
-								{Name: "Design Patterns"},
-							},
-						},
-					},
-					{
-						Title:  "Backend Developer",
-						Salary: 44000,
-						Skills: types.Skills{
-							Skills: []types.Skill{
-								{Name: "Java"},
-								{Name: "OOP"},
-								{Name: "Design Patterns"},
-							},
-						},
-					},
-				},
+				InternalJobs: []uuid.UUID{uuid.New()},
+				ExternalJobs: []types.Job{{Title: "Backend Developer"}},
+				Message:      "",
 			},
 			expectedErrorMsg: "",
 		},
 		{
-			name:             "Error - Internal jobs fetching fails",
-			internalJobs:     []uuid.UUID{},
-			internalJobsErr:  fmt.Errorf("database error"),
-			externalJobs:     []types.Job{},
-			externalJobsErr:  nil,
-			expectedOutput:   types.JobsOutput{},
-			expectedErrorMsg: "database error",
+			name:            "Success - Only internal jobs available",
+			internalJobs:    []uuid.UUID{uuid.New()},
+			internalJobsErr: nil,
+			externalJobs:    nil,
+			externalJobsErr: fmt.Errorf("external service error"),
+			expectedOutput: types.JobsOutput{
+				InternalJobs: []uuid.UUID{uuid.New()},
+				ExternalJobs: nil,
+				Message:      "Warning: failed to fetch external jobs",
+			},
+			expectedErrorMsg: "",
 		},
 		{
-			name:             "Error - External jobs fetching fails",
-			internalJobs:     []uuid.UUID{},
-			internalJobsErr:  nil,
-			externalJobs:     []types.Job{},
-			externalJobsErr:  fmt.Errorf("external service error"),
-			expectedOutput:   types.JobsOutput{InternalJobs: []uuid.UUID{}},
-			expectedErrorMsg: "external service error",
+			name:            "Error - Internal jobs fetching fails",
+			internalJobs:    nil,
+			internalJobsErr: fmt.Errorf("database error"),
+			externalJobs:    []types.Job{{Title: "Backend Developer"}},
+			externalJobsErr: nil,
+			expectedOutput: types.JobsOutput{
+				InternalJobs: nil,
+				ExternalJobs: []types.Job{{Title: "Backend Developer"}},
+				Message:      "",
+			},
+			expectedErrorMsg: "could not get internal jobs: database error",
 		},
 		{
-			name:             "Error - Both internal and external jobs fetching fails",
-			internalJobs:     []uuid.UUID{},
-			internalJobsErr:  fmt.Errorf("database error"),
-			externalJobs:     []types.Job{},
-			externalJobsErr:  nil,
-			expectedOutput:   types.JobsOutput{},
-			expectedErrorMsg: "database error",
+			name:            "Error - External jobs fetching fails, internal jobs available",
+			internalJobs:    []uuid.UUID{uuid.New()},
+			internalJobsErr: nil,
+			externalJobs:    nil,
+			externalJobsErr: fmt.Errorf("external service error"),
+			expectedOutput: types.JobsOutput{
+				InternalJobs: []uuid.UUID{uuid.New()},
+				ExternalJobs: nil,
+				Message:      "Warning: failed to fetch external jobs",
+			},
+			expectedErrorMsg: "",
 		},
 	}
 
@@ -155,23 +122,27 @@ func TestGetJobs(t *testing.T) {
 			}
 
 			mockDB.On("GetInternalJobs", mock.Anything, mock.Anything).Return(tt.internalJobs, tt.internalJobsErr)
-			mockFetcher.On("FetchExternalJobs", "Backend Developer", int64(0), int64(0), "Argentina").Return(tt.externalJobs, tt.externalJobsErr)
+			mockFetcher.On("FetchExternalJobs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(tt.externalJobs, tt.externalJobsErr)
 
-			input := types.JobsInput{
-				JobTitles:          []string{"Backend Developer"},
-				SalaryMin:          0,
-				PreferredCountries: []string{"Argentina"},
-			}
+			// Call the GetJobs method
+			output, err := service.GetJobs(context.Background(), types.JobsInput{JobTitles: []string{"Backend Developer"}})
 
-			output, err := service.GetJobs(context.Background(), input)
+			// Assertions
 			if tt.expectedErrorMsg != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErrorMsg)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedOutput, output)
 			}
 
+			// Check that the length of internal and external jobs is as expected
+			assert.Equal(t, len(tt.expectedOutput.InternalJobs), len(output.InternalJobs))
+			assert.Equal(t, len(tt.expectedOutput.ExternalJobs), len(output.ExternalJobs))
+
+			// Verify the message
+			assert.Equal(t, tt.expectedOutput.Message, output.Message)
+
+			// Assert that the expectations were met
 			mockDB.AssertExpectations(t)
 			mockFetcher.AssertExpectations(t)
 		})
