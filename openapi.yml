@@ -4,7 +4,7 @@ info:
   description: API for subscribing to job notifications and querying available jobs.
   version: 1.0.0
 servers:
-  - url: http://localhost:8080/V1
+  - url: http://127.0.0.1:8080/V1
     description: Local development server
 paths:
   /subscribe:
@@ -181,3 +181,7 @@ components:
                     items:
                       type: string
                     description: List of job skills
+          nullable: true  # Allowing external_jobs to be null
+        message:
+          type: string
+          description: Response message when external jobs cannot be fetched

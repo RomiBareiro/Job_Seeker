@@ -51,77 +51,75 @@ func (s *JobsService) GetJobs(ctx context.Context, input types.JobsInput) (types
 	var (
 		internalJobs []uuid.UUID
 		externalJobs []types.Job
-		internalErr  error
-		externalErr  error
 		wg           sync.WaitGroup
 		errChan      = make(chan error, 2)
-		jobsChan     = make(chan struct {
-			internal []uuid.UUID
-			external []types.Job
-		}, 1)
 	)
 
-	s.Logger.Sugar().Info("Starting to fetch internal jobs...")
+	s.Logger.Sugar().Info("Starting to fetch jobs...")
 
-	// Fetch internal jobs concurrently
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		internalJobs, internalErr = s.DB.GetInternalJobs(ctx, &input)
-		if internalErr != nil {
-			errChan <- fmt.Errorf("could not get internal jobs: %w", internalErr)
-		}
-		s.Logger.Sugar().Infof("Got internal jobs: %v", len(internalJobs))
-	}()
+	// Fetch internal and external jobs concurrently
+	wg.Add(2)
+	go s.fetchInternalJobs(ctx, &input, &internalJobs, &wg, errChan)
+	go s.fetchExternalJobs(&input, &externalJobs, &wg, errChan)
 
-	s.Logger.Sugar().Info("Starting to fetch external jobs...")
-
-	// Fetch external jobs concurrently
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		externalJobs, externalErr = s.fetchAllExtJobs(&input)
-		if externalErr != nil {
-			errChan <- fmt.Errorf("could not get external jobs: %w", externalErr)
-		} else {
-			s.Logger.Sugar().Infof("Got external jobs: %v", len(externalJobs))
-		}
-	}()
-
-	// Collect results once all goroutines have completed
+	// Wait for goroutines to finish and then close errChan
 	go func() {
 		wg.Wait()
 		close(errChan)
-		jobsChan <- struct {
-			internal []uuid.UUID
-			external []types.Job
-		}{
-			internal: internalJobs,
-			external: externalJobs,
-		}
 	}()
 
+	// Process errors
 	var err error
-	// Process any errors encountered
 	for e := range errChan {
 		if e != nil {
 			if err == nil {
-				err = e // Set the first error encountered
+				err = e
 			}
 			s.Logger.Sugar().Errorf("Error fetching jobs: %v", e)
 		}
 	}
 
-	// Retrieve the job results
-	jobs := <-jobsChan
-
-	output := types.JobsOutput{
-		InternalJobs: jobs.internal,
-		ExternalJobs: jobs.external,
+	// Set message if external jobs failed
+	message := ""
+	if err != nil && len(externalJobs) == 0 && len(internalJobs) > 0 {
+		message = "Warning: failed to fetch external jobs"
+		err = nil // clear error since we have internal jobs
 	}
 
-	s.Logger.Sugar().Infof("Got jobs: internal: %v, external: %v", len(output.InternalJobs), len(output.ExternalJobs))
+	output := types.JobsOutput{
+		InternalJobs: internalJobs,
+		ExternalJobs: externalJobs,
+		Message:      message,
+	}
+
+	s.Logger.Sugar().Infof("Fetched jobs: internal: %v, external: %v, error: %v", len(output.InternalJobs), len(output.ExternalJobs), err)
 	return output, err
+}
+
+// fetchInternalJobs retrieves internal jobs and sends any error to errChan
+func (s *JobsService) fetchInternalJobs(ctx context.Context, input *types.JobsInput, jobs *[]uuid.UUID, wg *sync.WaitGroup, errChan chan<- error) {
+	defer wg.Done()
+	internalJobs, err := s.DB.GetInternalJobs(ctx, input)
+	if err != nil {
+		s.Logger.Sugar().Errorf("Could not get internal jobs: %v", err)
+		errChan <- fmt.Errorf("could not get internal jobs: %w", err)
+		return
+	}
+	*jobs = internalJobs
+	s.Logger.Sugar().Infof("Fetched internal jobs: %v", len(internalJobs))
+}
+
+// fetchExternalJobs retrieves external jobs and sends any error to errChan
+func (s *JobsService) fetchExternalJobs(input *types.JobsInput, jobs *[]types.Job, wg *sync.WaitGroup, errChan chan<- error) {
+	defer wg.Done()
+	externalJobs, err := s.fetchAllExtJobs(input)
+	if err != nil {
+		s.Logger.Sugar().Errorf("Could not fetch external jobs: %v", err)
+		errChan <- fmt.Errorf("could not get external jobs: %w", err)
+		return
+	}
+	*jobs = externalJobs
+	s.Logger.Sugar().Infof("Fetched external jobs: %v", len(externalJobs))
 }
 
 func (s *JobsService) fetchAllExtJobs(in *types.JobsInput) ([]types.Job, error) {

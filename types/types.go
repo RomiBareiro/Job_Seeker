@@ -32,6 +32,7 @@ type JobsInput struct {
 type JobsOutput struct {
 	InternalJobs []uuid.UUID `json:"internal_jobs" db:"id"`
 	ExternalJobs []Job       `json:"external_jobs"`
+	Message      string      `json:"message,omitempty"`
 }
 
 type DatabaseConfig struct {
