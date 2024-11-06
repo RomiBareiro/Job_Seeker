@@ -14,6 +14,7 @@ import (
 	types "jobs/types"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -242,5 +243,69 @@ func TestJobsHandler(t *testing.T) {
 			// Verify mock was called with expected parameters
 			svc.AssertExpectations(t)
 		})
+	}
+}
+
+type MockExternalJobAPI struct{}
+
+func (m *MockExternalJobAPI) FetchJobs(ctx context.Context, input types.JobsInput) (*types.JobsOutput, error) {
+	return &types.JobsOutput{
+		InternalJobs: []uuid.UUID{uuid.New()},
+		ExternalJobs: []types.Job{
+			{Title: "Software Engineer", Salary: 120000},
+		},
+	}, nil
+}
+func TestIntegration_UserSubscriptionAndJobSearch(t *testing.T) {
+	// Setup the mock service
+	logger, _ := setup.SetupLogger()
+	jobOutput := types.JobsOutput{
+		InternalJobs: []uuid.UUID{uuid.New()},
+		ExternalJobs: []types.Job{
+			{Title: "Software Engineer", Salary: 100000},
+		},
+	}
+	subscribeOutput := types.SubscribeOutput{
+		UserID: uuid.New(),
+		Name:   "John Doe",
+	}
+	validInput := types.JobsInput{
+		UserID:     uuid.MustParse("b2b20e8a-8702-4a44-9ede-3dc9a53e5aa6"),
+		PostedDate: time.Date(2023, time.November, 23, 16, 42, 23, 0, time.UTC),
+	}
+	mockService := new(MockJobsService)
+	mockService.On("Subscribe", mock.AnythingOfType("types.SubscribeInput")).Return(subscribeOutput, nil)
+	mockService.On("GetJobs", mock.Anything, validInput).Return(jobOutput, nil)
+
+	// Create the server without actually starting the HTTP server
+	server := NewServer(context.Background(), mockService, logger) // Mock the service
+	server.Router = mux.NewRouter()                                // Assign router manually
+	protectedRoutes := server.Router.PathPrefix("/V1").Subrouter()
+	protectedRoutes.HandleFunc("/subscribe", server.SubscribeHandler).Methods("POST")
+	protectedRoutes.HandleFunc("/jobs", server.JobsHandler).Methods("GET")
+
+	// Create a mock request and response recorder for testing JobsHandler
+	req, err := http.NewRequest("GET", "/V1/jobs?id=b2b20e8a-8702-4a44-9ede-3dc9a53e5aa6&posted_date=2023-11-23T16:42:23Z", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+
+	// Call the handler directly
+	server.JobsHandler(rr, req)
+
+	// Check for the expected result
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status code %v, got %v", http.StatusOK, rr.Code)
+	}
+
+	var response types.JobsOutput
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatal("Error decoding response:", err)
+	}
+
+	// Validate the response
+	if response.Message != "" {
+		t.Error("Expected some jobs in response")
 	}
 }
