@@ -34,6 +34,6 @@ func main() {
 	client := &http.Client{Timeout: 10 * time.Second}
 	jobsFetcher := external.NewExternalJobs(client, logger)
 	jobsService := service.NewJobsService(logger, db, jobsFetcher)
-
-	server.ServerSetup(jobsService, logger)
+	port := ":8080"
+	server.ServerSetup(jobsService, port, logger)
 }

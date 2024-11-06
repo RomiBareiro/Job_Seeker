@@ -22,6 +22,7 @@ type Server struct {
 	Svc      service.Service // Use the Service interface
 	ctx      context.Context
 	validate *validator.Validate
+	Router   *mux.Router
 }
 
 var errorResponse = "could not send response"
@@ -131,16 +132,16 @@ func (s *Server) JobsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // ServerSetup sets up the server and routes
-func ServerSetup(svc service.Service, logger *zap.Logger) *Server {
+func ServerSetup(svc service.Service, port string, logger *zap.Logger) *Server {
 	s := NewServer(context.Background(), svc, logger)
-	router := mux.NewRouter()
+	s.Router = mux.NewRouter()
 
-	protectedRoutes := router.PathPrefix("/V1").Subrouter()
+	protectedRoutes := s.Router.PathPrefix("/V1").Subrouter()
 	protectedRoutes.HandleFunc("/subscribe", s.SubscribeHandler).Methods("POST")
 	protectedRoutes.HandleFunc("/jobs", s.JobsHandler).Methods("GET")
-	port := ":8080"
+
 	s.Logger.Sugar().Infof("Listening port %s", port)
-	s.Logger.Sugar().Fatal(http.ListenAndServe(port, router))
+	s.Logger.Sugar().Fatal(http.ListenAndServe(port, s.Router))
 
 	return s
 }
