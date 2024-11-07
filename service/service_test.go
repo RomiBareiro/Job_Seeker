@@ -6,6 +6,7 @@ import (
 	"jobs/setup"
 	"jobs/types"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -171,10 +172,13 @@ func BenchmarkGetJobs(b *testing.B) {
 
 	// Run benchmark
 	for i := 0; i < b.N; i++ {
+		startTime := time.Now()
 		_, err := service.GetJobs(context.Background(), types.JobsInput{JobTitles: []string{"Backend Developer"}})
 		if err != nil {
 			b.Fatalf("Error en GetJobs: %v", err)
 		}
+		duration := time.Since(startTime)
+		b.Logf("Execution took %s", duration)
 	}
 
 	mockDB.AssertExpectations(b)
