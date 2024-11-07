@@ -1,0 +1,38 @@
+name: Go Benchmark
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.22'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run benchmarks
+        run: go test -bench=. -benchmem -run=^$ ./service > benchmark-results.txt
+
+      - name: Display benchmark results
+        run: cat benchmark-results.txt
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: benchmark-results.txt

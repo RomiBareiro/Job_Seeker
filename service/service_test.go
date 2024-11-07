@@ -148,3 +148,35 @@ func TestGetJobs(t *testing.T) {
 		})
 	}
 }
+func BenchmarkGetJobs(b *testing.B) {
+	l, _ := setup.SetupLogger()
+
+	// Mocks
+	mockDB := new(MockDB)
+	mockFetcher := new(MockExternalJobsFetcher)
+	service := &JobsService{
+		DB:          mockDB,
+		Logger:      l,
+		JobsFetcher: mockFetcher,
+	}
+
+	// Inputs
+	jobUUID := uuid.New()
+	mockInternalJobs := []uuid.UUID{jobUUID}
+	mockExternalJobs := []types.Job{{Title: "Backend Developer"}}
+
+	// Simulation
+	mockDB.On("GetInternalJobs", mock.Anything, mock.Anything).Return(mockInternalJobs, nil)
+	mockFetcher.On("FetchExternalJobs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockExternalJobs, nil)
+
+	// Run benchmark
+	for i := 0; i < b.N; i++ {
+		_, err := service.GetJobs(context.Background(), types.JobsInput{JobTitles: []string{"Backend Developer"}})
+		if err != nil {
+			b.Fatalf("Error en GetJobs: %v", err)
+		}
+	}
+
+	mockDB.AssertExpectations(b)
+	mockFetcher.AssertExpectations(b)
+}
