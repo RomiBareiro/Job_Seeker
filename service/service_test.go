@@ -6,6 +6,7 @@ import (
 	"jobs/setup"
 	"jobs/types"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -147,4 +148,39 @@ func TestGetJobs(t *testing.T) {
 			mockFetcher.AssertExpectations(t)
 		})
 	}
+}
+func BenchmarkGetJobs(b *testing.B) {
+	l, _ := setup.SetupLogger()
+
+	// Mocks
+	mockDB := new(MockDB)
+	mockFetcher := new(MockExternalJobsFetcher)
+	service := &JobsService{
+		DB:          mockDB,
+		Logger:      l,
+		JobsFetcher: mockFetcher,
+	}
+
+	// Inputs
+	jobUUID := uuid.New()
+	mockInternalJobs := []uuid.UUID{jobUUID}
+	mockExternalJobs := []types.Job{{Title: "Backend Developer"}}
+
+	// Simulation
+	mockDB.On("GetInternalJobs", mock.Anything, mock.Anything).Return(mockInternalJobs, nil)
+	mockFetcher.On("FetchExternalJobs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockExternalJobs, nil)
+
+	// Run benchmark
+	for i := 0; i < b.N; i++ {
+		startTime := time.Now()
+		_, err := service.GetJobs(context.Background(), types.JobsInput{JobTitles: []string{"Backend Developer"}})
+		if err != nil {
+			b.Fatalf("Error en GetJobs: %v", err)
+		}
+		duration := time.Since(startTime)
+		b.Logf("Execution took %s", duration)
+	}
+
+	mockDB.AssertExpectations(b)
+	mockFetcher.AssertExpectations(b)
 }

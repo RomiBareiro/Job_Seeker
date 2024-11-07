@@ -7,6 +7,7 @@ import (
 	"jobs/service"
 	s "jobs/setup"
 	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -31,6 +32,7 @@ func main() {
 			logger.Sugar().Fatalf("error closing database: %v", err)
 		}
 	}()
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	jobsFetcher := external.NewExternalJobs(client, logger)
 	jobsService := service.NewJobsService(logger, db, jobsFetcher)
