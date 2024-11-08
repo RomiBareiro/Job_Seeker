@@ -117,7 +117,9 @@ Use tools like curl, Postman, or Swagger UI to send requests to the endpoints an
 ### Observability
 
 I'm using Pyroscope to show metrics: 
-- Run and go to http://localhost:4040/ 
+- Run and go to http://localhost:4040/
+- ![Screenshot from 2024-11-08 17-27-46](https://github.com/user-attachments/assets/9e0aa13e-7eec-4827-8188-a513843dd46c)
+
 Also there is a Benchmark task running in 1 of the GH actions (using pprof)
 
 ### Logs
