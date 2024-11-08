@@ -10,6 +10,7 @@ import (
 	_ "net/http/pprof"
 	"time"
 
+	"github.com/grafana/pyroscope-go"
 	_ "github.com/lib/pq"
 )
 
@@ -33,6 +34,20 @@ func main() {
 		}
 	}()
 
+	_, err = pyroscope.Start(pyroscope.Config{
+		ApplicationName: "your.app.name",
+		ServerAddress:   "http://pyroscope:4040", // URL del servidor Pyroscope
+	})
+
+	if err != nil {
+		logger.Sugar().Warnf("could not start Pyroscope: %v", err)
+	}
+	// Run pprof in a separate goroutine
+	go func() {
+		if err := http.ListenAndServe(":6060", nil); err != nil {
+			logger.Sugar().Warnf("pprof server error: %v", err)
+		}
+	}()
 	client := &http.Client{Timeout: 10 * time.Second}
 	jobsFetcher := external.NewExternalJobs(client, logger)
 	jobsService := service.NewJobsService(logger, db, jobsFetcher)

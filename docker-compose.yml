@@ -19,7 +19,6 @@ services:
     container_name: jobs-container
     ports:
       - "8080:8080"  # app port
-      - "8081:8081"  # app port
       - "6060:6060"  # pprof
     depends_on:
       - postgres
@@ -30,5 +29,19 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_SSL_MODE: ${POSTGRES_SSL_MODE}
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+      PYROSCOPE_APPLICATION_NAME: job-seeker-jobs
     volumes:
       - .:/app
+
+  pyroscope:
+    image: grafana/pyroscope:latest
+    container_name: pyroscope
+    ports:
+      - "4040:4040" # http://localhost:4040/ pyroscope graphs
+    volumes:
+      - pyroscope_data:/var/lib/pyroscope 
+    command: server
+
+volumes:
+  pyroscope_data:
