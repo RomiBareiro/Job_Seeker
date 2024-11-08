@@ -114,6 +114,12 @@ Check openpi.yml file
 
 Use tools like curl, Postman, or Swagger UI to send requests to the endpoints and verify the API functionality.
 
+### Observability
+
+I'm using Pyroscope to show metrics: 
+- Run and go to http://localhost:4040/ 
+Also there is a Benchmark task running in 1 of the GH actions (using pprof)
+
 ### Logs
 
 You can view the logs of the containers with:
