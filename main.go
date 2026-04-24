@@ -24,10 +24,10 @@ func main() {
 
 	// Setup the database connection
 	db, err := s.Setup(ctx)
-	logger := db.Logger
 	if err != nil {
-		logger.Sugar().Fatalf("could not configure db: %v", err)
+		panic("could not configure db: " + err.Error())
 	}
+	logger := db.Logger
 	defer func() {
 		if err := db.Close(); err != nil {
 			logger.Sugar().Fatalf("error closing database: %v", err)

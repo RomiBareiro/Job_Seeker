@@ -1,6 +1,6 @@
 module jobs
 
-go 1.22.2
+go 1.26
 
 require (
 	github.com/go-playground/validator v9.31.0+incompatible
