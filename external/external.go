@@ -32,7 +32,7 @@ func (e *ExternalJobs) FetchExternalJobs(name string, minSalary, maxSalary int64
 	if err != nil {
 		return nil, fmt.Errorf("error fetching jobs from API (%s): %w", apiURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
