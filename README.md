@@ -7,7 +7,7 @@ This project provides an API for subscribing to job notifications and querying j
 
 - Docker
 - Docker Compose
-- Go 1.22
+- Go 1.26
 - Postgresql
 
 # Setup
